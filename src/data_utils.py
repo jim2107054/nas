@@ -13,7 +13,11 @@ def find_data_file(filename: str) -> str:
     candidates = [
         Path(filename),
         Path("dataset") / filename,
+        Path("/kaggle/input/datasets/soykot124/dataset") / filename,
+        Path("/kaggle/input/soykot124/dataset") / filename,
+        Path("/kaggle/input/dataset") / filename,
         Path("/kaggle/input/competitions/nascenia-ai-hackathon") / filename,
+        Path("/kaggle/input/nascenia-ai-hackathon") / filename,
     ]
     for path in candidates:
         if path.exists():
@@ -24,8 +28,9 @@ def find_data_file(filename: str) -> str:
         return matches[0]
 
     raise FileNotFoundError(
-        f"Could not find {filename}. Ensure it is present locally or in Kaggle inputs."
+        f"Could not find {filename}. Checked candidates and glob matches under /kaggle/input/. Ensure it is present locally or in Kaggle inputs."
     )
+
 
 def load_official(train_path: str = None, test_path: str = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load train.csv and test.csv, validating expected columns."""
