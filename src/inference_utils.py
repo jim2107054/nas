@@ -14,6 +14,17 @@ except ImportError:
 
 SYSTEM_PROMPT = "আপনি একজন অভিজ্ঞ চিকিৎসক। রোগীর প্রশ্ন মনোযোগ দিয়ে পড়ুন এবং চিকিৎসাগতভাবে সঠিক, স্পষ্ট ও সহানুভূতিশীল উত্তর বাংলায় দিন।"
 
+def get_optimal_torch_dtype():
+    """Determine optimal torch precision: bf16 on Ampere+ (capability >= 8.0), fp16 on older GPUs, float32 on CPU."""
+    if not torch.cuda.is_available():
+        return torch.float32
+    try:
+        if torch.cuda.get_device_capability()[0] >= 8 and torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+    except Exception:
+        pass
+    return torch.float16
+
 def load_model_for_inference(model_path: str = "/kaggle/working/final_model") -> tuple[AutoModelForCausalLM, AutoTokenizer]:
     """Load the merged model and tokenizer in appropriate precision (fp16 for P100, bf16 for Ampere+) for inference."""
     print(f"Loading merged model from {model_path}...")
@@ -21,10 +32,7 @@ def load_model_for_inference(model_path: str = "/kaggle/working/final_model") ->
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         
-    dtype = (
-        torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported()
-        else (torch.float16 if torch.cuda.is_available() else torch.float32)
-    )
+    dtype = get_optimal_torch_dtype()
     
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
@@ -34,7 +42,7 @@ def load_model_for_inference(model_path: str = "/kaggle/working/final_model") ->
     )
     model.eval()
 
-    print("Model loaded and set to eval mode.")
+    print(f"Model loaded and set to eval mode (dtype: {dtype}).")
     return model, tokenizer
 
 def generate_candidates(
@@ -180,13 +188,14 @@ def load_banglat5_for_inference(model_path: str = "/kaggle/working/banglat5_fina
     tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    dtype = get_optimal_torch_dtype()
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_path,
-        torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else (torch.float16 if torch.cuda.is_available() else torch.float32)
+        torch_dtype=dtype
     ).to(device)
     
     model.eval()
-    print(f"BanglaT5 model loaded and set to eval mode on {device}.")
+    print(f"BanglaT5 model loaded and set to eval mode on {device} (dtype: {dtype}).")
     return model, tokenizer
 
 def generate_banglat5(
