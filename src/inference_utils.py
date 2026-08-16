@@ -15,19 +15,25 @@ except ImportError:
 SYSTEM_PROMPT = "আপনি একজন অভিজ্ঞ চিকিৎসক। রোগীর প্রশ্ন মনোযোগ দিয়ে পড়ুন এবং চিকিৎসাগতভাবে সঠিক, স্পষ্ট ও সহানুভূতিশীল উত্তর বাংলায় দিন।"
 
 def load_model_for_inference(model_path: str = "/kaggle/working/final_model") -> tuple[AutoModelForCausalLM, AutoTokenizer]:
-    """Load the merged model and tokenizer in bfloat16 for evaluation or submission."""
+    """Load the merged model and tokenizer in appropriate precision (fp16 for P100, bf16 for Ampere+) for inference."""
     print(f"Loading merged model from {model_path}...")
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         
+    dtype = (
+        torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+        else (torch.float16 if torch.cuda.is_available() else torch.float32)
+    )
+    
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        torch_dtype=torch.bfloat16,
+        torch_dtype=dtype,
         device_map="auto",
         trust_remote_code=True
     )
     model.eval()
+
     print("Model loaded and set to eval mode.")
     return model, tokenizer
 
