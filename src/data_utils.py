@@ -173,57 +173,31 @@ def clean_official(train_df: pd.DataFrame) -> pd.DataFrame:
 
 def load_external_normalized() -> pd.DataFrame:
     """Load, inspect, and normalize shetumohanto/doctor_qa_bangla."""
-    print("Loading external dataset shetumohanto/doctor_qa_bangla...")
-    ds = load_dataset("shetumohanto/doctor_qa_bangla")
-    
-    # Print schema
-    print("\n--- External Dataset Schema Discovery ---")
-    print(ds)
-    for split in ds.keys():
-        print(f"Split '{split}' column names: {ds[split].column_names}")
-        print(f"First 2 examples in split '{split}':")
-        for i in range(min(2, len(ds[split]))):
-            print(f"  Example {i}: {ds[split][i]}")
-            
-    # Auto-detect question/answer columns
-    question_candidates = ["input", "question", "patient", "prompt", "instruction", "query", "text_input"]
-    answer_candidates = ["output", "answer", "doctor", "response", "reply", "completion", "text_output"]
-    
-    # Look at train split columns
-    split_name = "train" if "train" in ds else list(ds.keys())[0]
-    columns = ds[split_name].column_names
-    
-    matched_q = [c for c in columns if any(q in c.lower() for q in question_candidates)]
-    matched_a = [c for c in columns if any(a in c.lower() for a in answer_candidates)]
-    
-    df_raw = ds[split_name].to_pandas()
-    
-    # Handle auto-detection cases
-    if len(matched_q) == 1 and len(matched_a) == 1:
-        q_col, a_col = matched_q[0], matched_a[0]
-        print(f"Auto-detected columns: question='{q_col}', answer='{a_col}'")
-        inputs = df_raw[q_col].astype(str).str.strip()
-        outputs = df_raw[a_col].astype(str).str.strip()
-    elif len(columns) == 1 and columns[0] == "text":
-        # Known structure for this dataset
-        print("Dataset contains a single 'text' column. Attempting regex parsing of [INST] pattern...")
-        pattern = re.compile(r"\[INST\](.*?)(?:\[/INST\]|inst\s+turns)(.*)", re.DOTALL | re.IGNORECASE)
-        inputs, outputs = [], []
-        for val in df_raw["text"].astype(str):
-            match = pattern.search(val)
-            if match:
-                q, a = match.group(1), match.group(2)
-                inputs.append(q.replace("<s>", "").replace("</s>", "").strip())
-                outputs.append(a.replace("<s>", "").replace("</s>", "").strip())
-            else:
-                inputs.append("")
-                outputs.append("")
-    else:
-        raise ValueError(
-            f"Could not auto-detect question/answer columns. Columns: {columns}. "
-            f"Matched question candidates: {matched_q}, Matched answer candidates: {matched_a}"
-        )
+    print("Loading external dataset shetumohanto/doctor_qa_bangla via pandas...")
+    try:
+        df_raw = pd.read_csv("hf://datasets/shetumohanto/doctor_qa_bangla/dataset_mistral.csv")
+    except Exception as e:
+        print(f"Warning: Failed to fetch from HuggingFace directly via pandas: {e}")
+        # fallback if hf:// doesn't work
+        url = "https://huggingface.co/datasets/shetumohanto/doctor_qa_bangla/resolve/main/dataset_mistral.csv"
+        df_raw = pd.read_csv(url)
         
+    print(f"Loaded {len(df_raw)} raw examples.")
+    
+    # The dataset has a 'text' column with [INST] tags
+    print("Dataset contains a single 'text' column. Attempting regex parsing of [INST] pattern...")
+    pattern = re.compile(r"\[INST\](.*?)(?:\[/INST\]|inst\s+turns)(.*)", re.DOTALL | re.IGNORECASE)
+    inputs, outputs = [], []
+    for val in df_raw["text"].astype(str):
+        match = pattern.search(val)
+        if match:
+            q, a = match.group(1), match.group(2)
+            inputs.append(q.replace("<s>", "").replace("</s>", "").strip())
+            outputs.append(a.replace("<s>", "").replace("</s>", "").strip())
+        else:
+            inputs.append("")
+            outputs.append("")
+            
     # Build normalized DataFrame
     external_df = pd.DataFrame({
         "input": inputs,
