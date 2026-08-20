@@ -3,7 +3,10 @@ import time
 import torch
 import pandas as pd
 from transformers import AutoModelForCausalLM, AutoModelForSeq2SeqLM, AutoTokenizer
-from src.metric_utils import rouge_l_f1
+try:
+    from metric_utils import rouge_l_f1
+except ImportError:
+    from src.metric_utils import rouge_l_f1
 
 try:
     from normalizer import normalize
@@ -25,7 +28,7 @@ def get_optimal_torch_dtype():
         pass
     return torch.float16
 
-def load_model_for_inference(model_path: str = "/kaggle/working/final_model") -> tuple[AutoModelForCausalLM, AutoTokenizer]:
+def load_model_for_inference(model_path: str = "working/final_model") -> tuple[AutoModelForCausalLM, AutoTokenizer]:
     """Load the merged model and tokenizer in appropriate precision (fp16 for P100, bf16 for Ampere+) for inference."""
     print(f"Loading merged model from {model_path}...")
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
@@ -182,7 +185,7 @@ def run_inference(model, tokenizer, df: pd.DataFrame, k: int = 4) -> pd.DataFram
             
     return pd.DataFrame(results)
 
-def load_banglat5_for_inference(model_path: str = "/kaggle/working/banglat5_final") -> tuple[AutoModelForSeq2SeqLM, AutoTokenizer]:
+def load_banglat5_for_inference(model_path: str = "working/banglat5_final") -> tuple[AutoModelForSeq2SeqLM, AutoTokenizer]:
     """Load the fine-tuned BanglaT5 model and tokenizer in eval mode on GPU."""
     print(f"Loading BanglaT5 model from {model_path}...")
     tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
