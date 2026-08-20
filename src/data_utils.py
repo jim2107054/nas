@@ -7,12 +7,14 @@ import numpy as np
 from pathlib import Path
 from datasets import load_dataset
 from sklearn.model_selection import train_test_split
+import gdown
 
 def find_data_file(filename: str) -> str:
     """Find a data file in the local workspace or Kaggle input directories."""
     candidates = [
         Path(filename),
         Path("dataset") / filename,
+        Path("nas_dataset") / filename,
         Path("/kaggle/input/dataset") / filename,
         Path("/kaggle/input/competitions/nascenia-ai-hackathon") / filename,
         Path("/kaggle/input/nascenia-ai-hackathon") / filename,
@@ -20,6 +22,20 @@ def find_data_file(filename: str) -> str:
     for path in candidates:
         if path.exists():
             return str(path)
+            
+    # Try downloading if not found locally
+    if filename in ["train.csv", "test.csv", "submission.csv"]:
+        print(f"Dataset not found locally. Attempting to download from Google Drive...")
+        try:
+            url = "https://drive.google.com/drive/folders/1DNgEws2gmT9gcwQevAxP7ACLbvN_6014?usp=sharing"
+            gdown.download_folder(url, output="nas_dataset", quiet=False, use_cookies=False)
+            
+            # Check again after download
+            for path in candidates:
+                if path.exists():
+                    return str(path)
+        except Exception as e:
+            print(f"Warning: Failed to fetch from drive: {e}")
 
     matches = glob.glob(f"/kaggle/input/**/{filename}", recursive=True)
     if matches:
