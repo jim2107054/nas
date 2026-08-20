@@ -33,8 +33,14 @@ def run_notebook(notebook_name, description):
     convert_cmd = [sys.executable, "-m", "jupyter", "nbconvert", "--to", "script", notebook_name]
     run_command(convert_cmd, f"Converting {notebook_name} to Python script")
     
-    # 2. Run the generated script using IPython (so that %pip and ! commands work normally)
     script_name = notebook_name.replace('.ipynb', '.py')
+    fallback_txt = notebook_name.replace('.ipynb', '.txt')
+    
+    # Jupyter sometimes outputs .txt instead of .py if the notebook metadata is stripped
+    if not os.path.exists(script_name) and os.path.exists(fallback_txt):
+        os.rename(fallback_txt, script_name)
+    
+    # 2. Run the generated script using IPython (so that %pip and ! commands work normally)
     run_cmd = [sys.executable, "-m", "IPython", script_name]
     run_command(run_cmd, description)
 
