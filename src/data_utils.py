@@ -13,8 +13,6 @@ def find_data_file(filename: str) -> str:
     candidates = [
         Path(filename),
         Path("dataset") / filename,
-        Path("/kaggle/input/datasets/soykot124/dataset") / filename,
-        Path("/kaggle/input/soykot124/dataset") / filename,
         Path("/kaggle/input/dataset") / filename,
         Path("/kaggle/input/competitions/nascenia-ai-hackathon") / filename,
         Path("/kaggle/input/nascenia-ai-hackathon") / filename,
